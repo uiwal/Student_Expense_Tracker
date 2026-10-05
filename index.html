@@ -1,0 +1,939 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <title>Student Expense Tracker — Advanced (Single File)</title>
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <!-- Chart.js CDN -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <style>
+    
+    :root{--accent:#007BFF;--muted:#666;--card-w:980px}
+    *{box-sizing:border-box}
+    body{font-family:Inter,Arial,Helvetica,sans-serif;background:linear-gradient(180deg,#eef2f7,#fff);margin:0;padding:18px;display:flex;justify-content:center}
+    .wrap{width:min(var(--card-w),98%);display:grid;grid-template-columns:320px 1fr;gap:16px}
+    .card{background:#fff;border-radius:12px;padding:16px;box-shadow:0 8px 30px rgba(18,38,63,0.06)}
+    h1{font-size:18px;margin:6px 0 12px}
+    h2{font-size:16px;margin:6px 0}
+    label{font-size:13px;color:var(--muted);display:block;margin:8px 0 4px}
+    input,select,button{font-size:14px}
+    input,select{width:100%;padding:8px 10px;border-radius:8px;border:1px solid #dcdfe6}
+    .row{display:flex;gap:8px}
+    .row> *{flex:1}
+    button{background:var(--accent);color:#fff;padding:8px 10px;border-radius:8px;border:0;cursor:pointer}
+    button.ghost{background:transparent;color:var(--accent);border:1px solid #dcdfe6}
+    .small-btn{padding:6px 8px;border-radius:6px;font-size:13px}
+    table{width:100%;border-collapse:collapse;margin-top:12px;font-size:14px}
+    th,td{padding:8px 6px;border-bottom:1px solid #f0f0f0;text-align:left}
+    .muted{color:var(--muted);font-size:13px}
+    .summary{margin-top:12px;padding:10px;border-radius:8px;background:#fafafa;border:1px solid #f0f0f0}
+    .danger{background:#e74c3c}
+    .center-col{display:flex;flex-direction:column;gap:8px}
+    @media (max-width:900px){.wrap{grid-template-columns:1fr}}
+
+    /* ===== THEME VARIABLES ===== */
+:root{
+  --bg-main: linear-gradient(180deg,#ff9900,#e8930b);
+  --card-bg: #ffffff;
+  --text-main: #222;
+  --accent: #ff3300;
+}
+
+body.dark{
+  --bg-main: linear-gradient(180deg,#121212,#1e1e1e);
+  --card-bg: #1f1f1f;
+  --text-main: #f5f5f5;
+  --accent: #ff9800;
+}
+
+body{
+  background: var(--bg-main);
+  color: var(--text-main);
+}
+
+.card{
+  background: var(--card-bg);
+}
+
+#themeToggle{
+  position: fixed;
+  top: 14px;
+  right: 16px;
+  padding: 8px 14px;
+  border-radius: 20px;
+  border: none;
+  background: var(--accent);
+  color: #fff;
+  cursor: pointer;
+  font-weight: 600;
+  box-shadow: 0 4px 10px rgba(0,0,0,0.2);
+}
+
+  </style>
+</head>
+<body>
+
+  <button id="themeToggle">🌙 Dark Mode</button>
+
+  <div class="wrap">
+    <!-- LEFT: Auth, Add Expense, Budget, Profile -->
+    <div class="card">
+      <h1>Student Expense Tracker</h1>
+
+      <!-- AUTH -->
+      <div id="authArea">
+        <div id="loginView">
+          <h2>Login</h2>
+          <label>Username</label>
+          <input id="loginUser" placeholder="username" />
+          <label>Password</label>
+          <input id="loginPass" type="password" placeholder="8-digit password" maxlength="8" />
+          <div class="row">
+            <button id="loginBtn">Login</button>
+            <button class="ghost" id="showRegisterBtn">Register</button>
+          </div>
+          <p class="muted">Demo only — data stored locally (localStorage).</p>
+        </div>
+
+        <div id="registerView" style="display:none">
+          <h2>Create Account</h2>
+          <label>Username</label><input id="regUser" placeholder="username (eg-abc123)" maxlength="8"/>
+          <label>Password</label><input id="regPass" type="password" placeholder="8-digit password" maxlength="8"/>
+          <div class="row">
+            <button id="regBtn">Register</button>
+            <button class="ghost" id="backToLoginBtn">Back</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- DASH (shown after login) -->
+      <div id="dashLeft" style="display:none;margin-top:12px">
+        <div style="display:flex;justify-content:space-between;align-items:center">
+          <h2 id="welcome">Welcome</h2>
+          <div>
+            <button class="ghost small-btn" id="exportBtn">Export JSON</button>
+            <button class="ghost small-btn" id="logoutBtn">Logout</button>
+          </div>
+        </div>
+
+        <label>Profile name</label>
+        <input id="displayName" placeholder="Your name (optional)" />
+        <div style="display:flex;gap:8px;margin-bottom:8px">
+          <button class="ghost" id="saveProfileBtn">Save</button>
+          <button class="ghost" id="deleteAccountBtn">Delete account</button>
+        </div>
+
+        <label>Monthly Budget (₹)</label>
+        <div class="row">
+          <input id="budgetInput" type="number" min="0" step="0.01" placeholder="0.00" />
+          <button id="saveBudgetBtn">Save</button>
+        </div>
+
+        <hr />
+
+        <h2>Add Expense</h2>
+        <label>Title</label>
+        <input id="titleInput" placeholder="Books, Food, Bus..." />
+        <label>Category</label>
+        <select id="categoryInput">
+          <option value="">-- Select category --</option>
+          <option value="Food">Food</option>
+          <option value="Stay Rent">Stay Rent</option>
+          <option value="College Fees">College Fees</option>
+          <option value="Transport">Transport</option>
+          <option value="Stationary">Stationary</option>
+          <option value="Utilities">Utilities</option>
+          <option value="Entertainment">Entertainment</option>
+          <option value="Medical">Medical</option>
+          <option value="Personal Expenses">Personal Expenses</option>
+          <option value="Invesments">Invesments</option>
+          <option value="Other">Other</option>
+        </select>
+        <div class="row">
+          <input id="amountInput" type="number" min="0" step="0.01" placeholder="Amount" />
+          <input id="dateInput" type="date" />
+        </div>
+        <div class="row">
+          <button id="addExpenseBtn">Add Expense</button>
+          <button class="ghost" id="clearFormBtn">Clear</button>
+        </div>
+
+        <div style="margin-top:10px;display:flex;gap:8px">
+          <input id="importFile" type="file" accept="application/json" style="display:none" />
+          <button class="ghost" id="importBtn">Import JSON</button>
+          <button class="ghost" id="resetDataBtn">Reset Data</button>
+        </div>
+
+        <div class="summary">
+          <p class="muted" id="monthLabel">This month:</p>
+          <p><strong>Total (this month): ₹<span id="totalExpense">0.00</span></strong></p>
+          <p><strong>Budget: ₹<span id="displayBudget">0.00</span></strong></p>
+          <p><strong>Savings: ₹<span id="savings">0.00</span></strong></p>
+        </div>
+      </div>
+    </div>
+
+    <!-- RIGHT: Charts, Tables, Reference -->
+    <div class="card">
+      <div style="display:flex;justify-content:space-between;align-items:center">
+        <h2>Overview & Analytics</h2>
+        <div>
+          <label class="muted">Filter month</label>
+          <select id="filterMonth" style="min-width:160px"></select>
+        </div>
+      </div>
+
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:8px">
+        <div class="card" style="padding:10px">
+          <h3 style="margin:0 0 8px">Monthly totals</h3>
+          <canvas id="barChart" height="160"></canvas>
+        </div>
+        <div class="card" style="padding:10px">
+          <h3 style="margin:0 0 8px">Category breakdown</h3>
+          <canvas id="pieChart" height="160"></canvas>
+        </div>
+      </div>
+
+      <div style="margin-top:12px">
+        <h3 style="margin:0 0 8px">Monthly Aggregation</h3>
+        <table id="monthlyTable">
+          <thead><tr><th>Month</th><th>Total (₹)</th><th>Categories</th><th style="text-align:right">Action</th></tr></thead>
+          <tbody></tbody>
+        </table>
+      </div>
+
+      <div style="margin-top:12px">
+        <h3 style="margin:0 0 8px">All Expenses</h3>
+        <table id="expenseTable" aria-live="polite">
+          <thead><tr><th>Title</th><th>Category</th><th>Amount</th><th>Date</th><th style="text-align:right">Action</th></tr></thead>
+          <tbody></tbody>
+        </table>
+      </div>
+
+      <div style="margin-top:12px" id="reference">
+        <h3>Project Reference</h3>
+        <p class="muted">This demo uses localStorage and Chart.js. For production, replace localStorage with a backend and secure authentication.</p>
+        <ul>
+          <li>Features: categories, monthly aggregation, charts, import/export, profile</li>
+          <li>Tech: HTML / JS / Chart.js (CDN) — single file</li>
+        </ul>
+      </div>
+
+      <!-- ================= AI EXPENSE ASSISTANT ================= -->
+<div style="margin-top:16px" class="card">
+  <h3>🤖 AI Expense Assistant</h3>
+
+  <div id="aiChat"
+       style="height:220px;overflow-y:auto;border:1px solid #eee;
+              padding:8px;border-radius:8px;background:#fafafa;font-size:14px">
+    <div class="muted">
+      AI: Hi! Ask me anything about daily expenses, savings, or budgeting.
+    </div>
+  </div>
+
+  <div class="row" style="margin-top:8px">
+    <input id="aiInput" placeholder="Ask about food, rent, budget, savings..." />
+    <button id="aiSendBtn">Send</button>
+  </div>
+</div>
+<!-- ================= END AI EXPENSE ASSISTANT ================= -->
+
+    </div>
+  </div>
+
+<script>
+/*
+  Student Expense Tracker — Advanced single-file version
+  Storage keys:
+    SET_users -> { username: password }
+    SET_currentUser -> username
+    SET_profile_<user> -> {displayName}
+    SET_budget_<user> -> number
+    SET_expenses_<user> -> [{id, title, category, amount, date}]
+*/
+
+/* ===== THEME TOGGLE LOGIC ===== */
+const toggleBtn = document.getElementById("themeToggle");
+
+if(localStorage.getItem("theme") === "dark"){
+  document.body.classList.add("dark");
+  toggleBtn.textContent = "☀️ Light Mode";
+}
+
+toggleBtn.onclick = () => {
+  document.body.classList.toggle("dark");
+
+  if(document.body.classList.contains("dark")){
+    localStorage.setItem("theme","dark");
+    toggleBtn.textContent = "☀️ Light Mode";
+  }else{
+    localStorage.setItem("theme","light");
+    toggleBtn.textContent = "🌙 Dark Mode";
+  }
+};
+
+
+(function(){
+  // DOM references
+  const loginView = document.getElementById('loginView');
+  const registerView = document.getElementById('registerView');
+  const authArea = document.getElementById('authArea');
+  const dashLeft = document.getElementById('dashLeft');
+  const loginUser = document.getElementById('loginUser');
+  const loginPass = document.getElementById('loginPass');
+  const loginBtn = document.getElementById('loginBtn');
+  const showRegisterBtn = document.getElementById('showRegisterBtn');
+  const regUser = document.getElementById('regUser');
+  const regPass = document.getElementById('regPass');
+  const regBtn = document.getElementById('regBtn');
+  const backToLoginBtn = document.getElementById('backToLoginBtn');
+  const welcome = document.getElementById('welcome');
+  const logoutBtn = document.getElementById('logoutBtn');
+  const exportBtn = document.getElementById('exportBtn');
+  const displayName = document.getElementById('displayName');
+  const saveProfileBtn = document.getElementById('saveProfileBtn');
+  const deleteAccountBtn = document.getElementById('deleteAccountBtn');
+
+  const budgetInput = document.getElementById('budgetInput');
+  const saveBudgetBtn = document.getElementById('saveBudgetBtn');
+  const displayBudget = document.getElementById('displayBudget');
+  const titleInput = document.getElementById('titleInput');
+  const categoryInput = document.getElementById('categoryInput');
+  const amountInput = document.getElementById('amountInput');
+  const dateInput = document.getElementById('dateInput');
+  const addExpenseBtn = document.getElementById('addExpenseBtn');
+  const clearFormBtn = document.getElementById('clearFormBtn');
+  const importBtn = document.getElementById('importBtn');
+  const importFile = document.getElementById('importFile');
+  const resetDataBtn = document.getElementById('resetDataBtn');
+
+  const totalExpenseEl = document.getElementById('totalExpense');
+  const savingsEl = document.getElementById('savings');
+  const monthLabel = document.getElementById('monthLabel');
+
+  const expenseTableBody = document.querySelector('#expenseTable tbody');
+  const monthlyTableBody = document.querySelector('#monthlyTable tbody');
+  const filterMonth = document.getElementById('filterMonth');
+
+  // charts
+  let barChart = null;
+  let pieChart = null;
+
+  // storage helpers
+  const PREFIX = 'SET_';
+  const usersKey = ()=>PREFIX+'users';
+  const currentUserKey = ()=>PREFIX+'currentUser';
+  const profileKey = u=>PREFIX+'profile_'+u;
+  const budgetKey = u=>PREFIX+'budget_'+u;
+  const expensesKey = u=>PREFIX+'expenses_'+u;
+
+  function loadUsers(){ return JSON.parse(localStorage.getItem(usersKey()) || '{}'); }
+  function saveUsers(obj){ localStorage.setItem(usersKey(), JSON.stringify(obj)); }
+  function getCurrentUser(){ return localStorage.getItem(currentUserKey()); }
+  function setCurrentUser(u){ if(u) localStorage.setItem(currentUserKey(), u); else localStorage.removeItem(currentUserKey()); }
+
+  // small utility
+  function escapeHtml(s){ return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#039;'); }
+  function uid(){ return String(Date.now()) + Math.floor(Math.random()*1000); }
+
+  // AUTH handlers
+  showRegisterBtn.addEventListener('click', ()=>{ loginView.style.display='none'; registerView.style.display='block'; });
+  backToLoginBtn.addEventListener('click', ()=>{ registerView.style.display='none'; loginView.style.display='block'; });
+
+  regBtn.addEventListener('click', ()=>{
+    const u = (regUser.value||'').trim(), p = (regPass.value||'').trim();
+    if(!u||!p) return alert('Enter username and password');
+    const users = loadUsers();
+    if(users[u]) return alert('Username already exists');
+    users[u] = p;
+    saveUsers(users);
+    // initialize empty profile and data
+    localStorage.setItem(profileKey(u), JSON.stringify({ displayName: u }));
+    localStorage.setItem(expensesKey(u), JSON.stringify([]));
+    alert('Registered successfully — please login');
+    regUser.value = regPass.value = '';
+    backToLoginBtn.click();
+  });
+
+  loginBtn.addEventListener('click', ()=>{
+    const u = (loginUser.value||'').trim(), p = (loginPass.value||'').trim();
+    if(!u||!p) return alert('Enter username and password');
+    const users = loadUsers();
+    if(!users[u] || users[u] !== p) return alert('Invalid username or password');
+    setCurrentUser(u);
+    loginUser.value = loginPass.value = '';
+    openDashboard(u);
+  });
+
+  logoutBtn.addEventListener('click', ()=>{
+    setCurrentUser(null);
+    dashLeft.style.display = 'none';
+    document.querySelectorAll('.card')[0].scrollIntoView();
+    document.getElementById('authArea').scrollIntoView();
+    // show login again
+    loginView.style.display = 'block';
+    registerView.style.display = 'none';
+    document.getElementById('authArea').style.display = '';
+  });
+
+  // Dashboard open
+  function openDashboard(username){
+    document.getElementById('authArea').style.display = 'none';
+    dashLeft.style.display = 'block';
+    welcome.innerText = `Welcome, ${username}`;
+    // load profile
+    const prof = JSON.parse(localStorage.getItem(profileKey(username))||'{}');
+    displayName.value = prof.displayName || username;
+    // set date input to today
+    dateInput.value = new Date().toISOString().slice(0,10);
+    loadBudget(username);
+    loadExpenses(username);
+    rebuildMonthlyTable(username);
+    rebuildFilterMonths(username);
+    initCharts();
+    updateCharts(username);
+  }
+
+  // Profile actions
+  saveProfileBtn.addEventListener('click', ()=>{
+    const u = getCurrentUser(); if(!u) return;
+    const prof = { displayName: (displayName.value||u).trim() };
+    localStorage.setItem(profileKey(u), JSON.stringify(prof));
+    welcome.innerText = `Welcome, ${prof.displayName}`;
+    alert('Profile saved');
+  });
+
+  deleteAccountBtn.addEventListener('click', ()=>{
+    const u = getCurrentUser(); if(!u) return;
+    if(!confirm('Delete account and all data? This cannot be undone.')) return;
+    const users = loadUsers();
+    delete users[u];
+    saveUsers(users);
+    localStorage.removeItem(profileKey(u));
+    localStorage.removeItem(budgetKey(u));
+    localStorage.removeItem(expensesKey(u));
+    setCurrentUser(null);
+    location.reload();
+  });
+
+  // Budget
+  saveBudgetBtn.addEventListener('click', ()=>{
+    const u = getCurrentUser(); if(!u) return alert('No user');
+    let b = parseFloat(budgetInput.value); if(isNaN(b)||b<0) b = 0;
+    localStorage.setItem(budgetKey(u), String(b));
+    displayBudget.textContent = Number(b).toFixed(2);
+    calculateSummary();
+    alert('Budget saved');
+  });
+
+  function loadBudget(u){
+    const b = parseFloat(localStorage.getItem(budgetKey(u))||'0')||0;
+    budgetInput.value = b? b : '';
+    displayBudget.textContent = Number(b).toFixed(2);
+  }
+
+  // Expenses: add / edit / delete
+  let editingId = null;
+
+  addExpenseBtn.addEventListener('click', ()=>{
+    const u = getCurrentUser(); if(!u) return alert('Not logged in');
+    const title = (titleInput.value||'').trim();
+    const category = (categoryInput.value||'').trim();
+    const amount = parseFloat(amountInput.value);
+    const date = dateInput.value ? new Date(dateInput.value).toISOString() : new Date().toISOString();
+
+    if(!title) return alert('Enter title');
+    if(!category) return alert('Select category');
+    if(isNaN(amount) || amount <= 0) return alert('Enter valid amount');
+
+    const arr = JSON.parse(localStorage.getItem(expensesKey(u))||'[]');
+
+    if(editingId){
+      // save edit
+      const idx = arr.findIndex(x=>String(x.id)===String(editingId));
+      if(idx!==-1){
+        arr[idx].title = title;
+        arr[idx].category = category;
+        arr[idx].amount = amount;
+        arr[idx].date = date;
+      }
+      editingId = null;
+      addExpenseBtn.innerText = 'Add Expense';
+    } else {
+      // add new
+      arr.push({ id: uid(), title, category, amount, date });
+    }
+
+    localStorage.setItem(expensesKey(u), JSON.stringify(arr));
+    titleInput.value = amountInput.value = ''; categoryInput.value=''; dateInput.value = new Date().toISOString().slice(0,10);
+    loadExpenses(u); rebuildMonthlyTable(u); rebuildFilterMonths(u); updateCharts(u);
+  });
+
+  clearFormBtn.addEventListener('click', ()=>{
+    editingId = null;
+    addExpenseBtn.innerText = 'Add Expense';
+    titleInput.value = amountInput.value = ''; categoryInput.value=''; dateInput.value = new Date().toISOString().slice(0,10);
+  });
+
+  function loadExpenses(u){
+    const arr = JSON.parse(localStorage.getItem(expensesKey(u))||'[]');
+    arr.sort((a,b)=> new Date(b.date) - new Date(a.date));
+    expenseTableBody.innerHTML = '';
+    if(arr.length===0){
+      expenseTableBody.innerHTML = '<tr><td colspan="5" class="muted">No expenses yet</td></tr>';
+    } else {
+      arr.forEach(item=>{
+        const tr = document.createElement('tr');
+        const d = new Date(item.date);
+        const dateText = d.toLocaleDateString() + ' ' + d.toLocaleTimeString([], {hour:'2-digit',minute:'2-digit'});
+        tr.innerHTML = `<td>${escapeHtml(item.title)}</td>
+                        <td>${escapeHtml(item.category)}</td>
+                        <td>₹ ${Number(item.amount).toFixed(2)}</td>
+                        <td>${dateText}</td>
+                        <td style="text-align:right">
+                          <button class="small-btn ghost" data-action="edit" data-id="${item.id}">Edit</button>
+                          <button class="small-btn danger" data-action="delete" data-id="${item.id}">Delete</button>
+                        </td>`;
+        expenseTableBody.appendChild(tr);
+      });
+    }
+
+    // attach action handlers
+    Array.from(expenseTableBody.querySelectorAll('button')).forEach(btn=>{
+      btn.onclick = (e)=>{
+        const action = btn.getAttribute('data-action');
+        const id = btn.getAttribute('data-id');
+        if(action === 'delete'){
+          if(!confirm('Delete this expense?')) return;
+          deleteExpense(getCurrentUser(), id);
+        } else if(action === 'edit'){
+          editExpense(getCurrentUser(), id);
+        }
+      };
+    });
+
+    calculateSummary();
+  }
+
+  function deleteExpense(user, id){
+    let arr = JSON.parse(localStorage.getItem(expensesKey(user))||'[]');
+    arr = arr.filter(x=> String(x.id) !== String(id));
+    localStorage.setItem(expensesKey(user), JSON.stringify(arr));
+    loadExpenses(user); rebuildMonthlyTable(user); rebuildFilterMonths(user); updateCharts(user);
+  }
+
+  function editExpense(user, id){
+    const arr = JSON.parse(localStorage.getItem(expensesKey(user))||'[]');
+    const item = arr.find(x=> String(x.id) === String(id));
+    if(!item) return alert('Item not found');
+    editingId = item.id;
+    titleInput.value = item.title;
+    categoryInput.value = item.category;
+    amountInput.value = item.amount;
+    const d = new Date(item.date);
+    dateInput.value = d.toISOString().slice(0,10);
+    addExpenseBtn.innerText = 'Save Edit';
+  }
+
+  // Monthly aggregation and table
+  function rebuildMonthlyTable(u){
+    const arr = JSON.parse(localStorage.getItem(expensesKey(u))||'[]');
+    const map = {}; // key: YYYY-MM
+    arr.forEach(it=>{
+      const d = new Date(it.date);
+      const key = `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}`;
+      if(!map[key]) map[key] = { total:0, byCategory: {} , year:d.getFullYear(), month:d.getMonth()};
+      map[key].total += Number(it.amount||0);
+      map[key].byCategory[it.category] = (map[key].byCategory[it.category]||0) + Number(it.amount||0);
+    });
+
+    const keys = Object.keys(map).sort((a,b)=> b.localeCompare(a));
+    monthlyTableBody.innerHTML = '';
+    if(keys.length === 0){
+      monthlyTableBody.innerHTML = '<tr><td colspan="4" class="muted">No monthly data</td></tr>';
+      return;
+    }
+    keys.forEach(k=>{
+      const data = map[k];
+      const d = new Date(data.year, data.month, 1);
+      const label = d.toLocaleString(undefined, { month: 'long', year: 'numeric' });
+      const categoriesText = Object.entries(data.byCategory).map(([c,v]) => `${c}: ₹${v.toFixed(2)}`).join(', ');
+      const tr = document.createElement('tr');
+      tr.innerHTML = `<td>${label}</td><td>₹ ${data.total.toFixed(2)}</td><td>${escapeHtml(categoriesText)}</td>
+                      <td style="text-align:right"><button class="small-btn ghost" data-month="${k}">View</button></td>`;
+      monthlyTableBody.appendChild(tr);
+    });
+
+    // view button to filter by month
+    Array.from(monthlyTableBody.querySelectorAll('button')).forEach(btn=>{
+      btn.onclick = ()=>{
+        const m = btn.getAttribute('data-month');
+        filterMonth.value = m;
+        applyMonthFilter();
+      };
+    });
+  }
+
+  // Filters (month select)
+  function rebuildFilterMonths(u){
+    const arr = JSON.parse(localStorage.getItem(expensesKey(u))||'[]');
+    const months = new Set();
+    arr.forEach(it=>{
+      const d = new Date(it.date);
+      months.add(`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}`);
+    });
+    const opts = ['all', ...Array.from(months).sort((a,b)=> b.localeCompare(a))];
+    filterMonth.innerHTML = '';
+    opts.forEach(v=>{
+      const opt = document.createElement('option');
+      if(v==='all'){ opt.value='all'; opt.text='All months'; }
+      else{ const [y,mm] = v.split('-'); const d = new Date(Number(y), Number(mm)-1, 1); opt.value=v; opt.text = d.toLocaleString(undefined, { month:'long', year:'numeric' }); }
+      filterMonth.appendChild(opt);
+    });
+    filterMonth.onchange = applyMonthFilter;
+  }
+
+  function applyMonthFilter(){
+    const u = getCurrentUser(); if(!u) return;
+    const sel = filterMonth.value;
+    const arr = JSON.parse(localStorage.getItem(expensesKey(u))||'[]').slice();
+    const filtered = sel && sel !== 'all' ? arr.filter(it=>{
+      const d = new Date(it.date);
+      const k = `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}`;
+      return k === sel;
+    }) : arr;
+    renderExpenseTable(filtered);
+    updateCharts(u, filtered); // update charts based on filtered selection
+  }
+
+  function renderExpenseTable(list){
+    expenseTableBody.innerHTML = '';
+    if(list.length===0){
+      expenseTableBody.innerHTML = '<tr><td colspan="5" class="muted">No expenses for selected filters</td></tr>';
+      return;
+    }
+    list.sort((a,b)=> new Date(b.date) - new Date(a.date)).forEach(item=>{
+      const d = new Date(item.date);
+      const dateText = d.toLocaleDateString() + ' ' + d.toLocaleTimeString([], {hour:'2-digit',minute:'2-digit'});
+      const tr = document.createElement('tr');
+      tr.innerHTML = `<td>${escapeHtml(item.title)}</td>
+                      <td>${escapeHtml(item.category)}</td>
+                      <td>₹ ${Number(item.amount).toFixed(2)}</td>
+                      <td>${dateText}</td>
+                      <td style="text-align:right">
+                        <button class="small-btn ghost" data-action="edit" data-id="${item.id}">Edit</button>
+                        <button class="small-btn danger" data-action="delete" data-id="${item.id}">Delete</button>
+                      </td>`;
+      expenseTableBody.appendChild(tr);
+    });
+    // reattach
+    Array.from(expenseTableBody.querySelectorAll('button')).forEach(btn=>{
+      btn.onclick = ()=>{
+        const action = btn.getAttribute('data-action'), id = btn.getAttribute('data-id');
+        if(action==='delete'){ if(confirm('Delete?')){ deleteExpense(getCurrentUser(), id); } }
+        else if(action==='edit'){ editExpense(getCurrentUser(), id); }
+      };
+    });
+  }
+
+  // Summary calculation: totals only for current month-year
+  function calculateSummary(){
+    const u = getCurrentUser(); if(!u) return;
+    const arr = JSON.parse(localStorage.getItem(expensesKey(u))||'[]');
+    const now = new Date(), thisMonth = now.getMonth(), thisYear = now.getFullYear();
+    const monthName = now.toLocaleString(undefined, { month: 'long', year: 'numeric' });
+    monthLabel.innerText = `This month (${monthName}):`;
+    const totalThisMonth = arr.filter(x=>{
+      const d = new Date(x.date);
+      return d.getMonth() === thisMonth && d.getFullYear() === thisYear;
+    }).reduce((s,x)=> s + Number(x.amount||0), 0);
+    const budget = parseFloat(localStorage.getItem(budgetKey(u))||'0')||0;
+    const savings = budget - totalThisMonth;
+    totalExpenseEl.innerText = Number(totalThisMonth).toFixed(2);
+    displayBudget && (displayBudget.textContent = Number(budget).toFixed(2));
+    savingsEl.innerText = Number(savings).toFixed(2);
+  }
+
+  // Charts (bar - monthly totals, pie - categories)
+  function initCharts(){
+    const barCtx = document.getElementById('barChart').getContext('2d');
+    const pieCtx = document.getElementById('pieChart').getContext('2d');
+    if(barChart) barChart.destroy();
+    if(pieChart) pieChart.destroy();
+    barChart = new Chart(barCtx, {
+      type: 'bar',
+      data: { labels: [], datasets: [{ label: 'Monthly total (₹)', data: [], backgroundColor: [] }] },
+      options: { responsive:true, plugins:{ legend:{ display:false } }, scales:{ y:{ beginAtZero:true } } }
+    });
+    pieChart = new Chart(pieCtx, {
+      type: 'pie',
+      data: { labels: [], datasets: [{ data: [], backgroundColor: [] }] },
+      options: { responsive:true, plugins:{ legend:{ position:'bottom' } } }
+    });
+  }
+
+  function randomColor(){ const r=Math.floor(Math.random()*200)+30, g=Math.floor(Math.random()*200)+30, b=Math.floor(Math.random()*200)+30; return `rgba(${r},${g},${b},0.8)`; }
+
+  function updateCharts(u, sourceArr){
+    if(!u) u = getCurrentUser();
+    const arr = Array.isArray(sourceArr) ? sourceArr.slice() : JSON.parse(localStorage.getItem(expensesKey(u))||'[]');
+    // monthly map
+    const map = {};
+    arr.forEach(it=>{
+      const d = new Date(it.date);
+      const key = `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}`;
+      map[key] = (map[key] || 0) + Number(it.amount||0);
+    });
+    const sortedKeys = Object.keys(map).sort();
+    const labels = sortedKeys.map(k=>{
+      const [y,mm] = k.split('-');
+      const d = new Date(Number(y), Number(mm)-1, 1);
+      return d.toLocaleString(undefined, { month:'short', year:'numeric' });
+    });
+    const data = sortedKeys.map(k=> map[k]);
+    // update bar
+    if(barChart){
+      barChart.data.labels = labels;
+      barChart.data.datasets[0].data = data;
+      barChart.data.datasets[0].backgroundColor = labels.map(()=> randomColor());
+      barChart.update();
+    }
+    // pie by category
+    const cat = {};
+    arr.forEach(it=> cat[it.category] = (cat[it.category]||0) + Number(it.amount||0));
+    const catLabels = Object.keys(cat);
+    const catData = catLabels.map(k=> cat[k]);
+    if(pieChart){
+      pieChart.data.labels = catLabels;
+      pieChart.data.datasets[0].data = catData;
+      pieChart.data.datasets[0].backgroundColor = catLabels.map(()=> randomColor());
+      pieChart.update();
+    }
+  }
+
+  // init charts helper
+  function initChartsIfNeeded(){ if(!barChart || !pieChart) initCharts(); }
+
+  // Export / Import
+  exportBtn.addEventListener('click', ()=>{
+    const u = getCurrentUser(); if(!u) return alert('No user');
+    const obj = { user: u, profile: JSON.parse(localStorage.getItem(profileKey(u))||'{}'), budget: localStorage.getItem(budgetKey(u))||null, expenses: JSON.parse(localStorage.getItem(expensesKey(u))||'[]') };
+    const blob = new Blob([JSON.stringify(obj, null, 2)], { type: 'application/json' });
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = `expenses_${u}.json`;
+    a.click();
+    URL.revokeObjectURL(a.href);
+  });
+
+  importBtn.addEventListener('click', ()=> importFile.click());
+  importFile.addEventListener('change', (e)=>{
+    const f = e.target.files[0];
+    if(!f) return;
+    const reader = new FileReader();
+    reader.onload = function(){
+      try{
+        const json = JSON.parse(reader.result);
+        const u = getCurrentUser();
+        if(!u) return alert('Please login before importing (data will merge into current account).');
+        // merge expenses into current user's expenses
+        const existing = JSON.parse(localStorage.getItem(expensesKey(u))||'[]');
+        const incoming = Array.isArray(json.expenses) ? json.expenses : (json.data || []);
+        incoming.forEach(it=> {
+          if(!it.id) it.id = uid();
+          if(!it.date) it.date = new Date().toISOString();
+          existing.push(it);
+        });
+        localStorage.setItem(expensesKey(u), JSON.stringify(existing));
+        alert('Imported and merged successfully');
+        loadExpenses(u); rebuildMonthlyTable(u); rebuildFilterMonths(u); updateCharts(u);
+      }catch(err){
+        alert('Import failed: ' + err.message);
+      }
+    };
+    reader.readAsText(f);
+    // reset input
+    e.target.value = '';
+  });
+
+  // Reset account data (expenses + budget)
+  resetDataBtn.addEventListener('click', ()=>{
+    const u = getCurrentUser(); if(!u) return;
+    if(!confirm('Reset all expenses and budget for this account?')) return;
+    localStorage.removeItem(expensesKey(u));
+    localStorage.removeItem(budgetKey(u));
+    loadExpenses(u); loadBudget(u); rebuildMonthlyTable(u); rebuildFilterMonths(u); updateCharts(u);
+    alert('Data reset');
+  });
+
+  // Calculate summary (used after changes)
+  function calculateSummary(){ calculateSummaryInner(); }
+  function calculateSummaryInner(){
+    const u = getCurrentUser(); if(!u) return;
+    const arr = JSON.parse(localStorage.getItem(expensesKey(u))||'[]');
+    const now = new Date();
+    const thisMonth = now.getMonth(), thisYear = now.getFullYear();
+    const totalThisMonth = arr.filter(x=>{
+      const d = new Date(x.date);
+      return d.getMonth() === thisMonth && d.getFullYear() === thisYear;
+    }).reduce((s,x)=> s + Number(x.amount||0), 0);
+    const budget = parseFloat(localStorage.getItem(budgetKey(u))||'0')||0;
+    const savings = budget - totalThisMonth;
+    totalExpenseEl.textContent = Number(totalThisMonth).toFixed(2);
+    savingsEl.textContent = Number(savings).toFixed(2);
+    monthLabel.textContent = `This month (${now.toLocaleString(undefined, { month: 'long', year: 'numeric' })}):`;
+  }
+
+  // init charts on page load (empty)
+  function initCharts(){
+    if(barChart){ barChart.destroy(); barChart=null; }
+    if(pieChart){ pieChart.destroy(); pieChart=null; }
+    const barCtx = document.getElementById('barChart').getContext('2d');
+    barChart = new Chart(barCtx, { type:'bar', data:{labels:[],datasets:[{label:'Monthly total',data:[],backgroundColor:[]}] }, options:{responsive:true,plugins:{legend:{display:false}},scales:{y:{beginAtZero:true}} }});
+    const pieCtx = document.getElementById('pieChart').getContext('2d');
+    pieChart = new Chart(pieCtx, { type:'pie', data:{labels:[],datasets:[{data:[],backgroundColor:[]}] }, options:{responsive:true,plugins:{legend:{position:'bottom'}}}});
+  }
+
+  // updateCharts wrapper ensuring init
+  function updateCharts(u, sourceArr){
+    initChartsIfNeeded();
+    updateCharts(u, sourceArr); // careful: overwritten below by real function
+  }
+
+  // *** Fix above recursion: override updateCharts name to refer to actual implementation ***
+  // Re-assign correct implementation (the function was defined earlier). To ensure no recursion, redeclare:
+  // (We already defined the real updateCharts function earlier; to avoid confusion, bind a safe reference:)
+  (function bindRealUpdate(){
+    const realUpdate = function(u, sourceArr){
+      if(!u) u = getCurrentUser();
+      const arr = Array.isArray(sourceArr) ? sourceArr.slice() : JSON.parse(localStorage.getItem(expensesKey(u))||'[]');
+      // monthly
+      const monthlyMap = {};
+      arr.forEach(it=>{
+        const d = new Date(it.date);
+        const key = `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}`;
+        monthlyMap[key] = (monthlyMap[key]||0) + Number(it.amount||0);
+      });
+      const sorted = Object.keys(monthlyMap).sort();
+      const labels = sorted.map(k=>{
+        const [y,mm]=k.split('-'); const d = new Date(Number(y), Number(mm)-1, 1);
+        return d.toLocaleString(undefined,{month:'short',year:'numeric'});
+      });
+      const data = sorted.map(k=> monthlyMap[k]);
+      // update bar
+      if(barChart){
+        barChart.data.labels = labels;
+        barChart.data.datasets[0].data = data;
+        barChart.data.datasets[0].backgroundColor = labels.map(()=> randomColor());
+        barChart.update();
+      }
+      // pie by category
+      const cat = {};
+      arr.forEach(it=> cat[it.category] = (cat[it.category]||0) + Number(it.amount||0));
+      const catLabels = Object.keys(cat);
+      const catData = catLabels.map(k=> cat[k]);
+      if(pieChart){
+        pieChart.data.labels = catLabels;
+        pieChart.data.datasets[0].data = catData;
+        pieChart.data.datasets[0].backgroundColor = catLabels.map(()=> randomColor());
+        pieChart.update();
+      }
+    };
+    // replace the previously unsafe reference
+    updateCharts = realUpdate;
+  })();
+
+  // ensure no leftover references to the temporary updateCharts above
+  // Finally, on load, check current user and initialize
+  window.addEventListener('DOMContentLoaded', ()=>{
+    initCharts();
+    const cur = getCurrentUser();
+    if(cur) openDashboard(cur);
+    // set date input default
+    dateInput.value = new Date().toISOString().slice(0,10);
+  });
+
+  // expose some functions for debugging / external use
+  window._SET = { loadExpenses, rebuildMonthlyTable, calculateSummary };
+
+})();
+
+/* ================= AI EXPENSE ASSISTANT SCRIPT ================= */
+
+const aiChat = document.getElementById("aiChat");
+const aiInput = document.getElementById("aiInput");
+const aiSendBtn = document.getElementById("aiSendBtn");
+
+function addAIMessage(sender, text){
+  const div = document.createElement("div");
+  div.style.margin = "6px 0";
+  div.innerHTML = `<strong>${sender}:</strong> ${text}`;
+  aiChat.appendChild(div);
+  aiChat.scrollTop = aiChat.scrollHeight;
+}
+
+function getAIResponse(question){
+  question = question.toLowerCase();
+
+  if(question.includes("saving") || question.includes("save")){
+    return "Track daily expenses, avoid unnecessary purchases, and save at least 20% of your budget.";
+  }
+  if(question.includes("food")){
+    return "Reduce food expenses by cooking at home and limiting online food orders.";
+  }
+  if(question.includes("manage") || question.includes("management") || question.includes("manage budget")){
+    return "Managing a monthly budget means planning how you will use your income for the entire month so that your expenses stay under control and you can save money for the future. Then, create a budget plan, preferably using the 50 30 20 rule:";
+  }
+  if(question.includes("budget") || question.includes("reduce")){
+    return "Follow the 50-30-20 rule: Needs, Wants, Savings. Reduce expenses by comparing prices, using discounts, and avoiding unnecessary purchases.";
+  }
+  if(question.includes("rent") || question.includes("stay")){
+    return "Sharing rooms and choosing affordable hostels can reduce rent.";  
+  }
+  if(question.includes("transport") || question.includes("travels") || question.includes("travel")){
+    return "Use public transport or student passes to save money.";
+  }
+  if(question.includes("expense") || question.includes("high")){
+    return "Check your category breakdown to identify overspending.";
+  }
+  if(question.includes("50 30 20")){
+    return "The 50 30 20 rule is a simple and popular budgeting method that helps you manage your money wisely by dividing your income into three main parts. 50% for Needs → basic expenses like food, rent, bills //  30% for Wants → entertainment, shopping, outings //  20% for Savings → savings, investments, emergency fund.";
+  }
+  if(question.includes("entertainment") || question.includes("movie") || question.includes("saving")){
+    return "Limit movies and paid subscriptions. Choose free or low-cost entertainment options.";
+  }
+  if(question.includes("medical") || question.includes("health")){
+    return "Keep a small emergency fund for medical expenses and avoid unnecessary medicines.";
+  }
+  if(question.includes("invest") || question.includes("investment")){
+    return "Start small investments only after building an emergency fund and basic savings.";
+  }
+  if(question.includes("spend") || question.includes("spending") || question.includes("overspend")){
+    return "Check your category-wise chart to identify where you are overspending and reduce it.";
+  }
+  if(question.includes("smart") || question.includes("smart saving")){
+    return "Smart saving means saving money in a planned and intelligent way by controlling expenses and using your income and budget wisely. 👉 Spend only what you need, 👉 Avoid unnecessary expenses, 👉 Save regularly for future needs";
+  }
+  if(question.includes("manage") || question.includes("management") || question.includes("manage budget")){
+    return "Managing a monthly budget means planning how you will use your income for the entire month so that your expenses stay under control and you can save money for the future. Then, create a budget plan, preferably using the 50 30 20 rule:";
+  }
+
+  return "Soory Sir !! I am not fully customizs, I can help you with budgeting, savings, food, rent, transport, and student expenses.";
+}
+
+aiSendBtn.addEventListener("click", ()=>{
+  const q = aiInput.value.trim();
+  if(!q) return;
+  addAIMessage("You", q);
+  const reply = getAIResponse(q);
+  setTimeout(()=>addAIMessage("AI", reply), 300);
+  aiInput.value = "";
+});
+
+aiInput.addEventListener("keypress", e=>{
+  if(e.key === "Enter") aiSendBtn.click();
+});
+
+</script>
+</body>
+</html>        
